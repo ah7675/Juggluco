@@ -31,6 +31,7 @@
 #endif
 
 
+#define LOGCAT 1
 //#define DATALIB 1
 
 
