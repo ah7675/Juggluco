@@ -137,6 +137,19 @@ static void showCharacter(String label, BluetoothGattCharacteristic characterist
 	}
 private boolean connected=false;
 private PendingIntent onalarm=null;
+
+void reconnect() {
+	Log.i(LOG_ID,SerialNumber+" reconnect");
+	var gatt=mBluetoothGatt;
+	if(gatt!=null) {
+		gatt.disconnect();
+		gatt.close();
+		mBluetoothGatt = null;
+		}
+	var sensorbluetooth=SensorBluetooth.blueone;
+	if(sensorbluetooth!=null)
+		sensorbluetooth.connectToActiveDevice(this, 60000);
+}
 	@SuppressLint("MissingPermission")
 	@Override
 	public void onConnectionStateChange(BluetoothGatt bluetoothGatt, int status, int newState) {
@@ -239,6 +252,16 @@ private PendingIntent onalarm=null;
 						conphase = 1;
 						boolean isEnabled = asknotification(BLELogincharacteristic);
 						{if(doLog) {Log.i(LOG_ID, "Enabled Security notification: " + isEnabled);};};
+						mBLELoginHandler = () -> {
+							mBLELoginHandler = null;
+							if (conphase == 2) {
+								wrotepass[1] = System.currentTimeMillis();
+								handshake = "Handshake timeout";
+								Log.e(LOG_ID, "Handshake timeout");
+								reconnect();
+								}
+							};
+						Applic.app.getHandler().postDelayed(mBLELoginHandler, 6000);
 						return true;
 					}
 					{if(doLog) {Log.i(LOG_ID, "Using security generation 1");};};
@@ -678,7 +701,7 @@ private final boolean enableNotification(BluetoothGattCharacteristic bluetoothGa
 
             mBLELoginHandler = () -> {
                 if (!asknotification(CompositeRawDatacharacteristic)) {
-                    Log.e(LOG_ID, SerialNumber+" phase3 retry=" + BLELoginposted + " enableNotification failed");
+                    Log.e(LOG_ID, SerialNumber+" phase3 retry=" + BLELoginposted + " writeDescriptor(CompositeRawDatacharacteristic) failed");
                     handshake = "Enable CompositeRawDatacharacteristic failed";
                     wrotepass[1] = System.currentTimeMillis();
                     if (BLELoginposted < 5) {
